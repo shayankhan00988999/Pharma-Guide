@@ -1,0 +1,46 @@
+name: shayan_pharma_guide
+description: Pharmacy study notes and materials app for students.
+publish_to: 'none'
+version: 1.1.0+2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  http: ^1.2.0
+  flutter_secure_storage: ^9.0.0
+  url_launcher: ^6.2.5
+  dio: ^5.4.0
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
+  open_filex: ^4.4.0
+  crypto: ^3.0.3
+  shimmer: ^3.0.0
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
+
+# Generates the real app launcher icon (replacing the default Flutter
+# icon) from assets/icon/icon.png. Run via:
+#   dart run flutter_launcher_icons
+# This is also wired into codemagic.yaml so every cloud build gets the
+# custom icon automatically — you don't need Flutter installed locally.
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/icon/icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#1565C0"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"

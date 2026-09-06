@@ -1,0 +1,169 @@
+workflows:
+  generate-keystore:
+    name: ONE-TIME - Generate release keystore
+    max_build_duration: 10
+    environment:
+      flutter: stable
+    scripts:
+      - name: Create a permanent signing keystore
+        script: |
+          keytool -genkey -v \
+            -keystore shayan_pharma_guide_release.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias shayan_pharma_key \
+            -storepass ShayanPharma2026! \
+            -keypass ShayanPharma2026! \
+            -dname "CN=Shayan, OU=Pharma Guide, O=Shayan Pharma Guide, L=Rawalpindi, ST=Punjab, C=PK"
+    artifacts:
+      - shayan_pharma_guide_release.jks
+
+  android-build:
+    name: Shayan Pharma Guide - Android
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      # This workflow now signs with a PERMANENT keystore so every
+      # build/update has the same signature (required by APKPure/Play
+      # Store for updates). Set this up once:
+      #   1. Run the "generate-keystore" workflow above, download the
+      #      .jks artifact it produces.
+      #   2. Codemagic dashboard -> Team settings (or app settings) ->
+      #      Code signing identities -> Android keystore -> upload
+      #      that .jks file. Use password "ShayanPharma2026!" for both
+      #      the keystore password and key password, and
+      #      "shayan_pharma_key" as the key alias (matches what the
+      #      generate-keystore workflow created). Give the reference a
+      #      name, e.g. "shayan_pharma_keystore".
+      #   3. Put that same name below in android_signing.
+      android_signing:
+        - shayan_pharma_keystore
+    scripts:
+      - name: Generate missing platform files
+        script: |
+          rm -rf android
+          flutter create . --platforms=android --project-name pharmaguide2 --org com.shayanpharmaguide
+      - name: Configure release signing
+        script: |
+          python3 - <<'PYEOF'
+          import os
+
+          key_properties = f"""storeFile={os.environ['CM_KEYSTORE_PATH']}
+          storePassword={os.environ['CM_KEYSTORE_PASSWORD']}
+          keyAlias={os.environ['CM_KEY_ALIAS']}
+          keyPassword={os.environ['CM_KEY_PASSWORD']}
+          """
+          with open('android/key.properties', 'w') as f:
+              f.write(key_properties)
+
+          path = 'android/app/build.gradle'
+          with open(path) as f:
+              content = f.read()
+
+          signing_setup = '''
+          def keystoreProperties = new Properties()
+          def keystorePropertiesFile = rootProject.file('key.properties')
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+          }
+          '''
+          content = content.replace('android {', signing_setup + '\nandroid {', 1)
+
+          signing_config = '''    signingConfigs {
+              release {
+                  keyAlias keystoreProperties['keyAlias']
+                  keyPassword keystoreProperties['keyPassword']
+                  storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                  storePassword keystoreProperties['storePassword']
+              }
+          }
+          '''
+          content = content.replace(
+              'buildTypes {',
+              signing_config + '    buildTypes {',
+              1
+          )
+          content = content.replace(
+              'signingConfig signingConfigs.debug',
+              'signingConfig signingConfigs.release'
+          )
+
+          with open(path, 'w') as f:
+              f.write(content)
+          print(open(path).read())
+          PYEOF
+      - name: Ensure INTERNET permission is declared
+        script: |
+          python3 - <<'PYEOF'
+          import re
+          path = "android/app/src/main/AndroidManifest.xml"
+          with open(path) as f:
+              content = f.read()
+          if "android.permission.INTERNET" not in content:
+              content = re.sub(
+                  r'(<manifest[^>]*>)',
+                  r'\1\n    <uses-permission android:name="android.permission.INTERNET"/>',
+                  content,
+                  count=1,
+              )
+              with open(path, "w") as f:
+                  f.write(content)
+          print(open(path).read())
+          PYEOF
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Generate custom app icon
+        script: dart run flutter_launcher_icons
+      - name: Build APK (release)
+        script: flutter build apk --release
+      - name: Zip the build output
+        script: |
+          mkdir -p build_output
+          cp build/app/outputs/flutter-apk/app-release.apk build_output/
+          cd build_output
+          zip -r shayan_pharma_guide_android.zip app-release.apk
+    artifacts:
+      - build_output/shayan_pharma_guide_android.zip
+      - build/app/outputs/flutter-apk/app-release.apk
+    publishing:
+      email:
+        recipients:
+          - shayankhandurrani00@gmail.com
+
+  ios-build:
+    name: Shayan Pharma Guide - iOS (unsigned demo build)
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      # No ios_signing / App Store Connect block here on purpose — this
+      # produces an UNSIGNED .ipa meant for sideloading (e.g. with
+      # Sideloadly) using a free Apple ID, not for TestFlight/App Store.
+      # Once you have a paid Apple Developer account, add a signing
+      # block here and switch the build step below to
+      # `flutter build ipa --release` with export options instead.
+    scripts:
+      - name: Generate missing platform files
+        script: |
+          rm -rf ios
+          flutter create . --platforms=ios --project-name pharmaguide2 --org com.shayanpharmaguide
+      - name: Get Flutter packages
+        script: flutter packages pub get
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install --repo-update
+      - name: Build unsigned iOS app
+        script: |
+          flutter build ios --release --no-codesign
+      - name: Package unsigned .ipa
+        script: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -r shayan_pharma_guide_unsigned.ipa Payload
+    artifacts:
+      - build/ios/iphoneos/shayan_pharma_guide_unsigned.ipa
+    publishing:
+      email:
+        recipients:
+          - shayankhandurrani00@gmail.com
