@@ -147,8 +147,17 @@ workflows:
                   content,
                   count=1,
               )
-              with open(path, "w") as f:
-                  f.write(content)
+          # Force the display name (shown under the home screen icon) to
+          # "Shayan Pharma Guide" regardless of the internal project name
+          # used for the applicationId.
+          content = re.sub(
+              r'android:label="[^"]*"',
+              r'android:label="Shayan Pharma Guide"',
+              content,
+              count=1,
+          )
+          with open(path, "w") as f:
+              f.write(content)
           print(open(path).read())
           PYEOF
       - name: Get Flutter packages
