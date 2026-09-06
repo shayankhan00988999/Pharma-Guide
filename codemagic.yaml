@@ -41,7 +41,7 @@ workflows:
       - name: Generate missing platform files
         script: |
           rm -rf android
-          flutter create . --platforms=android --project-name shayan_pharma_guide --org com.shayanpharmaguide
+          flutter create . --platforms=android --project-name pharmaguide2 --org com.shayanpharmaguide
       - name: Configure release signing
         script: |
           python3 - <<'PYEOF'
@@ -55,40 +55,82 @@ workflows:
           with open('android/key.properties', 'w') as f:
               f.write(key_properties)
 
-          path = 'android/app/build.gradle'
-          with open(path) as f:
-              content = f.read()
+          groovy_path = 'android/app/build.gradle'
+          kotlin_path = 'android/app/build.gradle.kts'
 
-          signing_setup = '''
+          if os.path.exists(kotlin_path):
+              # ---- Kotlin DSL (build.gradle.kts) — modern flutter create ----
+              path = kotlin_path
+              with open(path) as f:
+                  content = f.read()
+
+              signing_setup = '''import java.util.Properties
+          import java.io.FileInputStream
+
+          val keystoreProperties = Properties()
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+          }
+
+          '''
+              content = signing_setup + content
+
+              signing_config = '''    signingConfigs {
+                  create("release") {
+                      keyAlias = keystoreProperties["keyAlias"] as String
+                      keyPassword = keystoreProperties["keyPassword"] as String
+                      storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+                      storePassword = keystoreProperties["storePassword"] as String
+                  }
+              }
+          '''
+              content = content.replace(
+                  'buildTypes {',
+                  signing_config + '    buildTypes {',
+                  1
+              )
+              content = content.replace(
+                  'signingConfig = signingConfigs.getByName("debug")',
+                  'signingConfig = signingConfigs.getByName("release")'
+              )
+          else:
+              # ---- Groovy DSL (build.gradle) — older flutter create ----
+              path = groovy_path
+              with open(path) as f:
+                  content = f.read()
+
+              signing_setup = '''
           def keystoreProperties = new Properties()
           def keystorePropertiesFile = rootProject.file('key.properties')
           if (keystorePropertiesFile.exists()) {
               keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
           }
           '''
-          content = content.replace('android {', signing_setup + '\nandroid {', 1)
+              content = content.replace('android {', signing_setup + '\nandroid {', 1)
 
-          signing_config = '''    signingConfigs {
-              release {
-                  keyAlias keystoreProperties['keyAlias']
-                  keyPassword keystoreProperties['keyPassword']
-                  storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-                  storePassword keystoreProperties['storePassword']
+              signing_config = '''    signingConfigs {
+                  release {
+                      keyAlias keystoreProperties['keyAlias']
+                      keyPassword keystoreProperties['keyPassword']
+                      storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                      storePassword keystoreProperties['storePassword']
+                  }
               }
-          }
           '''
-          content = content.replace(
-              'buildTypes {',
-              signing_config + '    buildTypes {',
-              1
-          )
-          content = content.replace(
-              'signingConfig signingConfigs.debug',
-              'signingConfig signingConfigs.release'
-          )
+              content = content.replace(
+                  'buildTypes {',
+                  signing_config + '    buildTypes {',
+                  1
+              )
+              content = content.replace(
+                  'signingConfig signingConfigs.debug',
+                  'signingConfig signingConfigs.release'
+              )
 
           with open(path, 'w') as f:
               f.write(content)
+          print("Patched:", path)
           print(open(path).read())
           PYEOF
       - name: Ensure INTERNET permission is declared
@@ -146,7 +188,7 @@ workflows:
       - name: Generate missing platform files
         script: |
           rm -rf ios
-          flutter create . --platforms=ios --project-name shayan_pharma_guide --org com.shayanpharmaguide
+          flutter create . --platforms=ios --project-name pharmaguide2 --org com.shayanpharmaguide
       - name: Get Flutter packages
         script: flutter packages pub get
       - name: Install CocoaPods
