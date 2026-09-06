@@ -41,7 +41,7 @@ workflows:
       - name: Generate missing platform files
         script: |
           rm -rf android
-          flutter create . --platforms=android --project-name pharmaguide2 --org com.shayanpharmaguide
+          flutter create . --platforms=android --project-name shayan_pharma_guide --org com.shayanpharmaguide
       - name: Configure release signing
         script: |
           python3 - <<'PYEOF'
@@ -146,7 +146,7 @@ workflows:
       - name: Generate missing platform files
         script: |
           rm -rf ios
-          flutter create . --platforms=ios --project-name pharmaguide2 --org com.shayanpharmaguide
+          flutter create . --platforms=ios --project-name shayan_pharma_guide --org com.shayanpharmaguide
       - name: Get Flutter packages
         script: flutter packages pub get
       - name: Install CocoaPods
