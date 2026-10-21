@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/drive_node.dart';
+import '../screens/document_viewer_screen.dart';
 import '../services/download_service.dart';
 import '../theme/app_theme.dart';
 
@@ -68,15 +68,12 @@ class FileTile extends StatelessWidget {
     );
   }
 
-  Future<void> _open(BuildContext context) async {
-    if (node.viewUrl == null) return;
-    final uri = Uri.parse(node.viewUrl!);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Could not open file')));
-      }
-    }
+  void _open(BuildContext context) {
+    // Opens the file in the built-in reader instead of sending the
+    // student out to Google Drive.
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => DocumentViewerScreen(node: node)),
+    );
   }
 
   Future<void> _download(BuildContext context) async {
