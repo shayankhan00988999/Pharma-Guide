@@ -165,7 +165,7 @@ workflows:
       - name: Generate custom app icon
         script: dart run flutter_launcher_icons
       - name: Build APK (release)
-        script: flutter build apk --release
+        script: flutter build apk --release --no-shrink
       - name: Zip the build output
         script: |
           mkdir -p build_output
