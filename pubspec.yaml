@@ -19,7 +19,6 @@ dependencies:
   open_filex: ^4.4.0
   crypto: ^3.0.3
   shimmer: ^3.0.0
-  shared_preferences: ^2.2.2
   pdfx: ^2.9.0
   webview_flutter: ^4.9.0
 
